@@ -41,6 +41,8 @@ class ChartLinePainter extends BasePainter {
   static const Color defaultColor = Colors.deepPurple;
   //x轴所有内容的偏移量，用来在滑动的时候改变内容的位置
   double xOffset;
+
+  Rect innerRect;
   ChartLinePainter(
     this.chartBeans,
     this.lineColor, {
@@ -117,9 +119,16 @@ class ChartLinePainter extends BasePainter {
   double startXNoOff,endXNoOff;
   ///计算边界
   void initBorder(Size size) {
-    startXNoOff= yNum > 0 ? basePadding * 2.5 : basePadding * 2 ; //预留出y轴刻度值所占的空间
+    startXNoOff= basePadding * 2.5 ; //预留出y轴刻度值所占的空间
     endXNoOff = size.width - basePadding * 2;
-    startX = yNum > 0 ? basePadding * 2.5 : basePadding * 2 +xOffset; //预留出y轴刻度值所占的空间
+    double temp=basePadding * 2.5;//预留出y轴刻度值所占的空间
+    if(xOffset>0){
+      xOffset=0;
+    }
+    if(chartBeans.length*xGap+xOffset<size.width-xGap){
+      xOffset=-chartBeans.length*xGap+size.width-xGap;
+    }
+    startX = temp +xOffset;
     //endX = size.width - basePadding * 2;
     endX = xGap * chartBeans.length+xOffset;
     startY = size.height - (isShowXyRuler ? basePadding * 3 : basePadding * 2);
@@ -128,6 +137,16 @@ class ChartLinePainter extends BasePainter {
     _fixedWidth = endX - startX;
     maxMin = calculateMaxMin(chartBeans);
 
+    double paddingTop=basePadding * 2;
+    double paddingLeft=basePadding * 2.5;
+    double paddingRight=basePadding * 2;
+    double paddingBottom=basePadding * 3 ;
+
+    //创建一个矩形，方便后续绘制
+    innerRect = Rect.fromPoints(
+      Offset(paddingLeft, 0),
+      Offset(size.width, size.height ),
+    );
 
   }
 
@@ -175,9 +194,23 @@ class ChartLinePainter extends BasePainter {
       ..color = xyColor
       ..style = PaintingStyle.stroke;
     if (isShowXy) {
+      if (xOffset < 0) {
+        canvas.save();
+        canvas.clipRect(
+          Rect.fromLTWH(
+            innerRect.left,
+            innerRect.top,
+            innerRect.width,
+            innerRect.height,
+          ),
+        );
+      }
       canvas.drawLine(Offset(startX, startY),
           Offset(endX + basePadding, startY), paint); //x轴
-      canvas.drawLine(Offset(startX, startY),
+      if(xOffset<0){
+        canvas.restore();
+      }
+      canvas.drawLine(Offset(startXNoOff, startY),
           Offset(startXNoOff, endY - basePadding), paint); //y轴
     }
     if (isShowBorderTop) {
@@ -198,9 +231,23 @@ class ChartLinePainter extends BasePainter {
     if (chartBeans != null && chartBeans.length > 0) {
       //int length = chartBeans.length > 7 ? 7 : chartBeans.length; //最多绘制7个
       int length = chartBeans.length;
-      double dw = _fixedWidth / (length - 1); //两个点之间的x方向距离
+      double dw =xGap; //两个点之间的x方向距离
       double dh = _fixedHeight / (length - 1); //两个点之间的y方向距离
+
       for (int i = 0; i < length; i++) {
+
+        if (xOffset < 0) {
+          canvas.save();
+          canvas.clipRect(
+            Rect.fromLTWH(
+              innerRect.left,
+              innerRect.top,
+              innerRect.width,
+              innerRect.height,
+            ),
+          );
+        }
+
         ///绘制x轴文本
         TextPainter(
             textAlign: TextAlign.center,
@@ -211,26 +258,43 @@ class ChartLinePainter extends BasePainter {
             textDirection: TextDirection.ltr)
           ..layout(minWidth: 40, maxWidth: 40)
           ..paint(canvas, Offset(startX + dw * i - 20, startY + basePadding));
-
-        if (isShowHintX) {
-          ///x轴辅助线
-          canvas.drawLine(
-              Offset(startX, startY - dh * i),
-              Offset(endX + basePadding, startY - dh * i),
-              paint..color = paint.color.withOpacity(0.5));
+        if (xOffset <0) {
+          canvas.restore();
         }
+//        if (isShowHintX) {
+//          ///x轴辅助线
+//          canvas.drawLine(
+//              Offset(startX, startY - dh * i),
+//              Offset(endX + basePadding, startY - dh * i),
+//              paint..color = paint.color.withOpacity(0.5));
+//        }
 
-        if (isShowHintY) {
-          ///y轴辅助线
-          canvas.drawLine(Offset(startXNoOff + dw * i, startY),
-              Offset(startXNoOff + dw * i, endY - basePadding), paint);
-        }
+//        if (isShowHintY) {
+//          ///y轴辅助线
+//          canvas.drawLine(Offset(startXNoOff + dw * i, startY),
+//              Offset(startXNoOff + dw * i, endY - basePadding), paint);
+//        }
 
         if (!isShowXyRuler) continue;
 
         ///x轴刻度
+        if (xOffset < 0) {
+          canvas.save();
+          canvas.clipRect(
+            Rect.fromLTWH(
+              innerRect.left,
+              innerRect.top,
+              innerRect.width,
+              innerRect.height,
+            ),
+          );
+        }
         canvas.drawLine(Offset(startX + dw * i, startY),
             Offset(startX + dw * i, startY - rulerWidth), paint);
+        if (xOffset < 0) {
+          canvas.restore();
+        }
+
       }
       int yLength = yNum + 1; //包含原点,所以 +1
       double dValue = maxMin[0] / yNum; //一段对应的值
@@ -256,7 +320,7 @@ class ChartLinePainter extends BasePainter {
 
         ///y轴刻度
         canvas.drawLine(Offset(startXNoOff, startY - dV * (i)),
-            Offset(startX + rulerWidth, startY - dV * (i)), paint);
+            Offset(startXNoOff + rulerWidth, startY - dV * (i)), paint);
       }
     }
   }
@@ -309,7 +373,21 @@ class ChartLinePainter extends BasePainter {
 //    }
 
     ///先画阴影再画曲线，目的是防止阴影覆盖曲线
+    if (xOffset < 0) {
+      canvas.save();
+      canvas.clipRect(
+        Rect.fromLTWH(
+          innerRect.left,
+          innerRect.top,
+          innerRect.width,
+          innerRect.height,
+        ),
+      );
+    }
     canvas.drawPath(linePath, paint);
+    if(xOffset<0){
+      canvas.restore();
+    }
   }
 
   ///绘制触摸
@@ -322,14 +400,14 @@ class ChartLinePainter extends BasePainter {
       Offset pointer = globalPosition;
 
       ///修复x轴越界
-      if (pointer.dx < startX) pointer = Offset(startX, pointer.dy);
-      if (pointer.dx > endX) pointer = Offset(endX, pointer.dy);
+      if (pointer.dx < startXNoOff) pointer = Offset(startXNoOff, pointer.dy);
+      if (pointer.dx > endXNoOff) pointer = Offset(endXNoOff, pointer.dy);
 
       double currentX, currentY;
-      int length = chartBeans.length > 7 ? 7 : chartBeans.length;
+      int length = chartBeans.length ;
       double W = _fixedWidth / (length - 1); //两个点之间的x方向距离
       for (int i = 0; i < length; i++) {
-        currentX = startX + W * i;
+        currentX = startXNoOff + W * i;
         currentY = chartBeans[i].y;
         if (currentX - W / 2 <= pointer.dx && pointer.dx <= currentX + W / 2) {
           pointer = _points[currentX];
@@ -346,8 +424,8 @@ class ChartLinePainter extends BasePainter {
       if (isShowPressedHintLine) {
         canvas
           ..drawLine(
-              Offset(startX, pointer.dy),
-              Offset(endX + basePadding, pointer.dy),
+              Offset(startXNoOff, pointer.dy),
+              Offset(endXNoOff + basePadding, pointer.dy),
               hintLinePaint..strokeWidth = pressedHintLineWidth)
           ..drawLine(
               Offset(pointer.dx, startY),

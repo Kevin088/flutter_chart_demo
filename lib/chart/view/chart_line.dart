@@ -137,35 +137,41 @@ class ChartLineState extends State<ChartLine>
 
     if (widget.isCanTouch) {
       return GestureDetector(
-        onLongPressStart: (details) {
+        onTapDown: (details){
           setState(() {
             globalPosition = details.globalPosition;
           });
         },
-        onLongPressMoveUpdate: (details) {
-          setState(() {
-            globalPosition = details.globalPosition;
-          });
-        },
-        onHorizontalDragUpdate: (details) {
-          print("onHorizontalDragUpdate===");
-          if(details==null){
-            print("onHorizontalDragUpdate===details=null");
-            return;
-          }
-
-          setState(() {
-            xOffSet += details.primaryDelta;
-          });
-
-        },
-        onLongPressUp: () async {
+        onTapUp: (details) async{
           await Future.delayed(Duration(milliseconds: 800)).then((_) {
             setState(() {
               globalPosition = null;
             });
           });
         },
+//        onLongPressStart: (details) {
+//          setState(() {
+//            globalPosition = details.globalPosition;
+//          });
+//        },
+//        onLongPressMoveUpdate: (details) {
+//          setState(() {
+//            globalPosition = details.globalPosition;
+//          });
+//        },
+        onHorizontalDragUpdate: (details) {
+          setState(() {
+            xOffSet += details.primaryDelta;
+          });
+          print("xOffSet========$xOffSet");
+        },
+//        onLongPressUp: () async {
+//          await Future.delayed(Duration(milliseconds: 800)).then((_) {
+//            setState(() {
+//              globalPosition = null;
+//            });
+//          });
+//        },
         child: CustomPaint(
           size: widget.size,
           painter: widget.backgroundColor == null ? painter : null,
